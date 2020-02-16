@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Post
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+from .models import Post, Comment
+from .forms import CommentForm
 
 # Create your views here.
 def post_list(request):
@@ -21,5 +23,26 @@ def post_detail(request, year, month, day, post):
     """Получение подробной информации про пост (открыть полностью)"""
     post = get_object_or_404(Post, slug=post, status='published', publish__year=year,
                              publish__month=month, publish__day=day)
+  #Список активных комментариев для этой статьи
+    comments = post.comments.filter(active=True)
+    new_comment = None
+    if request.method == 'POST':
+        #если пользователь отправил комментарий
+        comment_form = CommentForm(data=request.POST)
+        if comment_form.is_valid():
+            #создаем комментарии, но в базе они еще не сохранены
+            new_comment = comment_form.save(commit=False)
+            #привязываем комментарий к текущей статье
+            new_comment.post = post
+            #сохраняем коммент в базе данных
+            new_comment.save()
+    try:   #Интерпретатор ругается на ссылку сomment_form до объявления, поэтому надо проверить её существование
+        type(comment_form)
+    except:
+        comment_form = CommentForm()
+
     return render(request, 'blog/post/detail.html',
-                  {'post':post})
+                  {'post':post,
+                   'comments':comments,
+                   'new_comment':new_comment,
+                   'comment_form':comment_form})
